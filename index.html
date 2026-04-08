@@ -6,23 +6,22 @@
     <title>Juego de Memoria - Payasitos</title>
     <style>
         body {
-            margin: 0; background: #2c3e50; color: white;
+            margin: 0; background: white; color: white;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace; /* Fuente más pixel */
+            height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace;
         }
         #game-container {
-            position: relative; width: 90%; max-width: 500px; /* Responsivo */
+            position: relative; width: 90%; max-width: 500px;
             aspect-ratio: 1 / 1;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }
         canvas {
-            background: #34495e; border-radius: 8px; width: 100%; height: 100%;
-            touch-action: none; image-rendering: pixelated; /* Optimización para pixel art */
+            background: white; width: 100%; height: 100%;
+            touch-action: none; image-rendering: pixelated;
         }
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.85); border-radius: 8px; text-align: center; padding: 20px;
+            background: rgba(0,0,0,0.85); text-align: center; padding: 20px;
             box-sizing: border-box;
             opacity: 1; transition: opacity 0.5s;
         }
@@ -39,6 +38,18 @@
         h1 { font-size: 2em; color: #f1c40f; text-shadow: 2px 2px #c0392b; }
         h2 { font-size: 1.5em; color: #2ecc71; }
         p { font-size: 1em; color: #ecf0f1; }
+        
+        #ui-start {
+            background: white !important;
+        }
+        
+        #ui-level {
+            background: white !important;
+        }
+        
+        #ui-next {
+            background: white !important;
+        }
     </style>
 </head>
 <body>
@@ -46,16 +57,23 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
-    <div id="ui-start" class="ui-layer">
-        <h1>Payasitos Memory</h1>
-        <p>Encuentra las parejas antes de que se acabe el tiempo.</p>
-        <button onclick="startGame()">¡Vamos a jugar!</button>
+    <div id="ui-loading" class="ui-layer">
+        <h1>Un momentito por favor...</h1>
+    </div>
+
+    <div id="ui-start" class="ui-layer hidden">
+        <img id="title-img" src="img/game-logo.png" alt="Title" style="max-width: 80%; margin-bottom: 20px;">
+        <img id="instructions-img" src="img/instructions.png" alt="Instructions" style="max-width: 80%; margin-bottom: 30px;">
+        <img id="jugar-img" src="img/jugar.png" alt="Jugar" style="max-width: 70%; cursor: pointer;" onclick="startGame()">
+    </div>
+
+    <div id="ui-level" class="ui-layer hidden">
+        <img id="level-img" src="" alt="Level" style="max-width: 80%;">
     </div>
 
     <div id="ui-next" class="ui-layer hidden">
-        <h2>¡Bien hecho!</h2>
-        <p id="level-report"></p>
-        <button onclick="nextLevel()">Siguiente Nivel</button>
+        <img id="done-img" src="img/done.png" alt="Done" style="max-width: 80%; margin-bottom: 30px;">
+        <img id="siguiente-img" src="img/siguiente.png" alt="Siguiente" style="max-width: 70%; cursor: pointer;" onclick="nextLevel()">
     </div>
 
     <div id="ui-end" class="ui-layer hidden">
@@ -69,58 +87,68 @@
 // --- CONFIGURACIÓN Y ASSETS ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-// Desactivar suavizado para pixel art
-ctx.imageSmoothingEnabled = false; 
+ctx.imageSmoothingEnabled = false;
 
 // Capas UI
+const uiLoading = document.getElementById('ui-loading');
 const uiStart = document.getElementById('ui-start');
+const uiLevel = document.getElementById('ui-level');
+const levelImg = document.getElementById('level-img');
 const uiNext = document.getElementById('ui-next');
 const uiEnd = document.getElementById('ui-end');
-const levelReportText = document.getElementById('level-report');
 
 let level = 1;
 let cards = [];
 let selected = [];
 let canClick = false;
-let imagesLoaded = 0;
 let gameState = 'MENU'; // MENU, PLAYING, LEVEL_WIN, GAME_OVER
 
-// Generación de Placeholders Pixel Art (Payasitos Tiernos)
-const clownColors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A8', '#33FFF5', '#F5FF33', '#FF8C33', '#8C33FF'];
+// Load Card Images
 const clownImages = [];
+const cardFileNames = ['card-a.png', 'card-b.png', 'card-c.png', 'card-d.png', 'card-e.png', 'card-f.png', 'card-g.png', 'card-h.png'];
+let cardBackImage = null;
 
-function createClownPlaceholders() {
-    for (let i = 0; i < 8; i++) {
-        const imgCanvas = document.createElement('canvas');
-        imgCanvas.width = 32; imgCanvas.height = 32;
-        const ictx = imgCanvas.getContext('2d');
-        ictx.imageSmoothingEnabled = false;
-
-        const color = clownColors[i];
+function loadCardImages() {
+    return new Promise((resolve) => {
+        let loadedCount = 0;
+        const totalToLoad = cardFileNames.length + 1; // +1 for card-back.png
         
-        // Pelo
-        ictx.fillStyle = color;
-        ictx.fillRect(4, 2, 24, 8); ictx.fillRect(2, 4, 28, 10);
-        // Cara
-        ictx.fillStyle = '#FFF1E0';
-        ictx.fillRect(6, 10, 20, 16);
-        // Ojos (Kawai)
-        ictx.fillStyle = '#000';
-        ictx.fillRect(10, 14, 2, 4); ictx.fillRect(20, 14, 2, 4);
-        ictx.fillStyle = '#FFF'; // Brillo
-        ictx.fillRect(10, 14, 1, 1); ictx.fillRect(20, 14, 1, 1);
-        // Nariz Roja
-        ictx.fillStyle = '#E74C3C';
-        ictx.fillRect(14, 18, 4, 4);
-        ictx.fillStyle = '#FFF'; // Brillo nariz
-        ictx.fillRect(15, 19, 1, 1);
-        // Boca sonriente
-        ictx.fillStyle = '#000';
-        ictx.fillRect(12, 23, 8, 1);
-        ictx.fillRect(11, 22, 1, 1); ictx.fillRect(20, 22, 1, 1);
-
-        clownImages.push(imgCanvas);
-    }
+        cardFileNames.forEach((fileName) => {
+            const img = new Image();
+            img.src = 'img/' + fileName;
+            img.onload = () => {
+                loadedCount++;
+                if (loadedCount === totalToLoad) {
+                    resolve();
+                }
+            };
+            img.onerror = () => {
+                console.warn(`Failed to load ${fileName}`);
+                loadedCount++;
+                if (loadedCount === totalToLoad) {
+                    resolve();
+                }
+            };
+            clownImages.push(img);
+        });
+        
+        // Load card back image
+        cardBackImage = new Image();
+        cardBackImage.src = 'img/card-back.png';
+        cardBackImage.onload = () => {
+            loadedCount++;
+            if (loadedCount === totalToLoad) {
+                resolve();
+            }
+        };
+        cardBackImage.onerror = () => {
+            console.warn('Failed to load card-back.png');
+            loadedCount++;
+            if (loadedCount === totalToLoad) {
+                resolve();
+            }
+        };
+    });
 }
 
 // --- LÓGICA DEL JUEGO ---
@@ -134,56 +162,65 @@ function startGame() {
 
 function initLevel() {
     hideUILayers();
-    cards = [];
-    selected = [];
-    canClick = false;
-    gameState = 'PLAYING';
     
-    // Resolución fija para el canvas
-    canvas.width = 600; 
-    canvas.height = 600;
-
-    // Cartas: Nivel 1=4 (2x2), Nivel 2=6 (2x3...), Nivel 7=16 (4x4)
-    let numPairs = level + 1;
-    let currentImages = clownImages.slice(0, numPairs); 
-    let deck = [...currentImages, ...currentImages];
-    // Mezcla aleatoria
-    deck.sort(() => Math.random() - 0.5);
-
-    // Rejilla
-    const totalCards = deck.length;
-    const cols = Math.ceil(Math.sqrt(totalCards));
-    const rows = Math.ceil(totalCards / cols);
+    // Mostrar pantalla de nivel
+    levelImg.src = `img/nivel-${level}.png`;
+    uiLevel.classList.remove('hidden');
     
-    // Ajuste de tamaño para mobile
-    const gap = 10;
-    const size = Math.min(
-        (canvas.width - (cols + 1) * gap) / cols,
-        (canvas.height - (rows + 1) * gap) / rows
-    );
-
-    // Centrado de la rejilla
-    const gridWidth = cols * (size + gap) - gap;
-    const gridHeight = rows * (size + gap) - gap;
-    const offsetX = (canvas.width - gridWidth) / 2;
-    const offsetY = (canvas.height - gridHeight) / 2;
-
-    deck.forEach((imgCanvas, i) => {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const x = offsetX + col * (size + gap);
-        const y = offsetY + row * (size + gap);
-        cards.push({ img: imgCanvas, x, y, size, flipped: true, matched: false, shake: 0 });
-    });
-
-    draw();
-
-    // Mostrar 0.8 segundos y voltear
+    // Después de 2 segundos, empezar el juego
     setTimeout(() => {
-        cards.forEach(c => c.flipped = false);
-        canClick = true;
+        hideUILayers();
+        cards = [];
+        selected = [];
+        canClick = false;
+        gameState = 'PLAYING';
+        
+        // Resolución fija para el canvas
+        canvas.width = 600; 
+        canvas.height = 600;
+
+        // Cartas: Nivel 1=4 (2x2), Nivel 2=6 (2x3...), Nivel 7=16 (4x4)
+        let numPairs = level + 1;
+        let currentImages = clownImages.slice(0, numPairs); 
+        let deck = [...currentImages, ...currentImages];
+        // Mezcla aleatoria
+        deck.sort(() => Math.random() - 0.5);
+
+        // Rejilla
+        const totalCards = deck.length;
+        const cols = Math.ceil(Math.sqrt(totalCards));
+        const rows = Math.ceil(totalCards / cols);
+        
+        // Ajuste de tamaño para mobile
+        const gap = 10;
+        const size = Math.min(
+            (canvas.width - (cols + 1) * gap) / cols,
+            (canvas.height - (rows + 1) * gap) / rows
+        );
+
+        // Centrado de la rejilla
+        const gridWidth = cols * (size + gap) - gap;
+        const gridHeight = rows * (size + gap) - gap;
+        const offsetX = (canvas.width - gridWidth) / 2;
+        const offsetY = (canvas.height - gridHeight) / 2;
+
+        deck.forEach((imgCanvas, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const x = offsetX + col * (size + gap);
+            const y = offsetY + row * (size + gap);
+            cards.push({ img: imgCanvas, x, y, size, flipped: true, matched: false, shake: 0 });
+        });
+
         draw();
-    }, 800);
+
+        // Mostrar 0.8 segundos y voltear
+        setTimeout(() => {
+            cards.forEach(c => c.flipped = false);
+            canClick = true;
+            draw();
+        }, 800);
+    }, 2000);
 }
 
 function draw() {
@@ -194,42 +231,19 @@ function draw() {
         
         // Temblor
         if (card.shake > 0) {
-            ctx.translate(Math.sin(Date.now() * 0.2) * 8, 0); // Temblor más rápido
+            ctx.translate(Math.sin(Date.now() * 0.2) * 8, 0);
             card.shake--;
         }
 
-        const radius = 10;
-        ctx.beginPath();
-        ctx.moveTo(card.x + radius, card.y);
-        ctx.lineTo(card.x + card.size - radius, card.y);
-        ctx.quadraticCurveTo(card.x + card.size, card.y, card.x + card.size, card.y + radius);
-        ctx.lineTo(card.x + card.size, card.y + card.size - radius);
-        ctx.quadraticCurveTo(card.x + card.size, card.y + card.size, card.x + card.size - radius, card.y + card.size);
-        ctx.lineTo(card.x + radius, card.y + card.size);
-        ctx.quadraticCurveTo(card.x, card.y + card.size, card.x, card.y + card.size - radius);
-        ctx.lineTo(card.x, card.y + radius);
-        ctx.quadraticCurveTo(card.x, card.y, card.x + radius, card.y);
-        ctx.closePath();
-
         if (card.flipped || card.matched) {
-            // Fondo carta volteada
-            ctx.fillStyle = '#ecf0f1';
-            ctx.fill();
-            // Dibujar payasito pixel art escalado
-            const imgSize = card.size * 0.8;
-            const imgOffset = (card.size - imgSize) / 2;
-            ctx.drawImage(card.img, card.x + imgOffset, card.y + imgOffset, imgSize, imgSize);
+            // Dibujar carta del frente
+            ctx.drawImage(card.img, card.x, card.y, card.size, card.size);
         } else {
-            // Fondo trasera carta
-            ctx.fillStyle = '#2980b9';
-            ctx.fill();
-            ctx.fillStyle = '#3498db';
-            ctx.fillRect(card.x + card.size*0.1, card.y + card.size*0.1, card.size*0.8, card.size*0.8);
+            // Dibujar reverso de carta
+            if (cardBackImage) {
+                ctx.drawImage(cardBackImage, card.x, card.y, card.size, card.size);
+            }
         }
-        
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#2c3e50';
-        ctx.stroke();
         
         ctx.restore();
     });
@@ -302,13 +316,13 @@ function checkMatch() {
 
 function hideUILayers() {
     uiStart.classList.add('hidden');
+    uiLevel.classList.add('hidden');
     uiNext.classList.add('hidden');
     uiEnd.classList.add('hidden');
 }
 
 function showLevelWin() {
     gameState = 'LEVEL_WIN';
-    levelReportText.innerText = `Nivel ${level} completado con ${level+1} parejas.`;
     uiNext.classList.remove('hidden');
 }
 
@@ -335,10 +349,11 @@ function resetGame() {
 }
 
 // --- INICIALIZACIÓN ---
-createClownPlaceholders();
-// Mostramos la pantalla de inicio al cargar
-hideUILayers();
-uiStart.classList.remove('hidden');
+loadCardImages().then(() => {
+    // Ocultamos pantalla de carga y mostramos la pantalla de inicio
+    uiLoading.classList.add('hidden');
+    uiStart.classList.remove('hidden');
+});
 
 </script>
 </body>
