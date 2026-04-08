@@ -8,7 +8,7 @@
         body {
             margin: 0; background: white; color: white;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; overflow: hidden; font-family: 'Courier New', Courier, monospace;
+            height: 100vh; overflow: hidden; font-family: sans-serif;
         }
         #game-container {
             position: relative; width: 90%; max-width: 500px;
@@ -21,7 +21,7 @@
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.85); text-align: center; padding: 20px;
+            text-align: center; padding: 20px;
             box-sizing: border-box;
             opacity: 1; transition: opacity 0.5s;
         }
@@ -35,8 +35,8 @@
         }
         button:active { transform: scale(0.95); }
         
-        h1 { font-size: 2em; color: #f1c40f; text-shadow: 2px 2px #c0392b; }
-        h2 { font-size: 1.5em; color: #2ecc71; }
+        h1 { font-size: 2em; color: #000000; }
+        h2 { font-size: 1.5em; color: #000000; }
         p { font-size: 1em; color: #ecf0f1; }
         
         #ui-start {
@@ -83,278 +83,6 @@
     </div>
 </div>
 
-<script>
-// --- CONFIGURACIÓN Y ASSETS ---
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-ctx.imageSmoothingEnabled = false;
-
-// Capas UI
-const uiLoading = document.getElementById('ui-loading');
-const uiStart = document.getElementById('ui-start');
-const uiLevel = document.getElementById('ui-level');
-const levelImg = document.getElementById('level-img');
-const uiNext = document.getElementById('ui-next');
-const uiEnd = document.getElementById('ui-end');
-
-let level = 1;
-let cards = [];
-let selected = [];
-let canClick = false;
-let gameState = 'MENU'; // MENU, PLAYING, LEVEL_WIN, GAME_OVER
-
-// Load Card Images
-const clownImages = [];
-const cardFileNames = ['card-a.png', 'card-b.png', 'card-c.png', 'card-d.png', 'card-e.png', 'card-f.png', 'card-g.png', 'card-h.png'];
-let cardBackImage = null;
-
-function loadCardImages() {
-    return new Promise((resolve) => {
-        let loadedCount = 0;
-        const totalToLoad = cardFileNames.length + 1; // +1 for card-back.png
-        
-        cardFileNames.forEach((fileName) => {
-            const img = new Image();
-            img.src = 'img/' + fileName;
-            img.onload = () => {
-                loadedCount++;
-                if (loadedCount === totalToLoad) {
-                    resolve();
-                }
-            };
-            img.onerror = () => {
-                console.warn(`Failed to load ${fileName}`);
-                loadedCount++;
-                if (loadedCount === totalToLoad) {
-                    resolve();
-                }
-            };
-            clownImages.push(img);
-        });
-        
-        // Load card back image
-        cardBackImage = new Image();
-        cardBackImage.src = 'img/card-back.png';
-        cardBackImage.onload = () => {
-            loadedCount++;
-            if (loadedCount === totalToLoad) {
-                resolve();
-            }
-        };
-        cardBackImage.onerror = () => {
-            console.warn('Failed to load card-back.png');
-            loadedCount++;
-            if (loadedCount === totalToLoad) {
-                resolve();
-            }
-        };
-    });
-}
-
-// --- LÓGICA DEL JUEGO ---
-
-function startGame() {
-    uiStart.classList.add('hidden');
-    level = 1;
-    gameState = 'PLAYING';
-    initLevel();
-}
-
-function initLevel() {
-    hideUILayers();
-    
-    // Mostrar pantalla de nivel
-    levelImg.src = `img/nivel-${level}.png`;
-    uiLevel.classList.remove('hidden');
-    
-    // Después de 2 segundos, empezar el juego
-    setTimeout(() => {
-        hideUILayers();
-        cards = [];
-        selected = [];
-        canClick = false;
-        gameState = 'PLAYING';
-        
-        // Resolución fija para el canvas
-        canvas.width = 600; 
-        canvas.height = 600;
-
-        // Cartas: Nivel 1=4 (2x2), Nivel 2=6 (2x3...), Nivel 7=16 (4x4)
-        let numPairs = level + 1;
-        let currentImages = clownImages.slice(0, numPairs); 
-        let deck = [...currentImages, ...currentImages];
-        // Mezcla aleatoria
-        deck.sort(() => Math.random() - 0.5);
-
-        // Rejilla
-        const totalCards = deck.length;
-        const cols = Math.ceil(Math.sqrt(totalCards));
-        const rows = Math.ceil(totalCards / cols);
-        
-        // Ajuste de tamaño para mobile
-        const gap = 10;
-        const size = Math.min(
-            (canvas.width - (cols + 1) * gap) / cols,
-            (canvas.height - (rows + 1) * gap) / rows
-        );
-
-        // Centrado de la rejilla
-        const gridWidth = cols * (size + gap) - gap;
-        const gridHeight = rows * (size + gap) - gap;
-        const offsetX = (canvas.width - gridWidth) / 2;
-        const offsetY = (canvas.height - gridHeight) / 2;
-
-        deck.forEach((imgCanvas, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const x = offsetX + col * (size + gap);
-            const y = offsetY + row * (size + gap);
-            cards.push({ img: imgCanvas, x, y, size, flipped: true, matched: false, shake: 0 });
-        });
-
-        draw();
-
-        // Mostrar 0.8 segundos y voltear
-        setTimeout(() => {
-            cards.forEach(c => c.flipped = false);
-            canClick = true;
-            draw();
-        }, 800);
-    }, 2000);
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    cards.forEach(card => {
-        ctx.save();
-        
-        // Temblor
-        if (card.shake > 0) {
-            ctx.translate(Math.sin(Date.now() * 0.2) * 8, 0);
-            card.shake--;
-        }
-
-        if (card.flipped || card.matched) {
-            // Dibujar carta del frente
-            ctx.drawImage(card.img, card.x, card.y, card.size, card.size);
-        } else {
-            // Dibujar reverso de carta
-            if (cardBackImage) {
-                ctx.drawImage(cardBackImage, card.x, card.y, card.size, card.size);
-            }
-        }
-        
-        ctx.restore();
-    });
-
-    // Loop de animación si hay temblor
-    if (cards.some(c => c.shake > 0)) {
-        requestAnimationFrame(draw);
-    }
-}
-
-// --- INTERACCIÓN ---
-
-// Unifica Touch y Mouse
-canvas.addEventListener('pointerdown', handlePointerDown);
-
-function handlePointerDown(e) {
-    if (!canClick || gameState !== 'PLAYING') return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
-
-    cards.forEach(card => {
-        if (!card.flipped && !card.matched &&
-            mouseX > card.x && mouseX < card.x + card.size &&
-            mouseY > card.y && mouseY < card.y + card.size) {
-            
-            card.flipped = true;
-            selected.push(card);
-            draw();
-
-            if (selected.length === 2) {
-                checkMatch();
-            }
-        }
-    });
-}
-
-function checkMatch() {
-    canClick = false;
-    const [c1, c2] = selected;
-
-    // Comparamos el canvas de la imagen directamente
-    if (c1.img === c2.img) {
-        c1.matched = c2.matched = true;
-        selected = [];
-        canClick = true;
-        // Dibujo inmediato para asegurar que se vea la última carta volteada
-        draw(); 
-        if (cards.every(c => c.matched)) showLevelWin();
-    } else {
-        setTimeout(() => {
-            // Iniciar temblor
-            c1.shake = c2.shake = 15; 
-            requestAnimationFrame(draw); // Iniciar loop animación
-
-            setTimeout(() => {
-                c1.flipped = c2.flipped = false;
-                selected = [];
-                canClick = true;
-                draw();
-            }, 300); // Tiempo temblando
-        }, 500); // Tiempo antes de temblar
-    }
-}
-
-// --- GESTIÓN DE PANTALLAS (UI) ---
-
-function hideUILayers() {
-    uiStart.classList.add('hidden');
-    uiLevel.classList.add('hidden');
-    uiNext.classList.add('hidden');
-    uiEnd.classList.add('hidden');
-}
-
-function showLevelWin() {
-    gameState = 'LEVEL_WIN';
-    uiNext.classList.remove('hidden');
-}
-
-function nextLevel() {
-    if (level < 7) {
-        level++;
-        initLevel();
-    } else {
-        showGameEnd();
-    }
-}
-
-function showGameEnd() {
-    gameState = 'GAME_OVER';
-    hideUILayers();
-    uiEnd.classList.remove('hidden');
-}
-
-function resetGame() {
-    level = 1;
-    gameState = 'MENU';
-    hideUILayers();
-    uiStart.classList.remove('hidden');
-}
-
-// --- INICIALIZACIÓN ---
-loadCardImages().then(() => {
-    // Ocultamos pantalla de carga y mostramos la pantalla de inicio
-    uiLoading.classList.add('hidden');
-    uiStart.classList.remove('hidden');
-});
-
-</script>
+<script type="module" src="/src/game.js"></script>
 </body>
 </html>
