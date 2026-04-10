@@ -40,6 +40,10 @@
         #ui-next {
             background: hsla(0, 0%, 100%, 0.85) !important;
         }
+
+        #ui-end {
+            background: hsla(0, 0%, 100%, 0.85) !important;
+        }
         
         #attempts-counter {
             display: none;
@@ -98,7 +102,7 @@
         <img id="siguiente-img" src="img/siguiente.png" alt="Siguiente" style="max-width: 70%; cursor: pointer;" onclick="nextLevel()">
     </div>
 
-    <div id="ui-end" class="ui-layer ">
+    <div id="ui-end" class="ui-layer hidden">
         <img id="done-img" src="img/felicitaciones.png" alt="Done" style="max-width: 80%; margin-bottom: 30px;">
         <h2>Lo lograste en <span id="total-attempts">0</span> intentos.</h2>
         <img id="done-img" onclick="resetGame()" src="img/gracias.png" alt="Done" style="max-width: 80%; margin-bottom: 30px;">
