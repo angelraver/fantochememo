@@ -26,18 +26,8 @@
             opacity: 1; transition: opacity 0.5s;
         }
         .hidden { display: none !important; opacity: 0; }
-        
-        button {
-            padding: 15px 30px; cursor: pointer; background: #e74c3c; color: white;
-            border: 4px solid #b03a2e; border-radius: 8px; font-size: 1.2em;
-            font-family: inherit; text-transform: uppercase;
-            transition: transform 0.1s;
-        }
-        button:active { transform: scale(0.95); }
-        
-        h1 { font-size: 2em; color: #000000; }
-        h2 { font-size: 1.5em; color: #000000; }
-        p { font-size: 1em; color: #ecf0f1; }
+ 
+        h2 { font-size: 1.5em; color: #000000 }
         
         #ui-start {
             background: white !important;
@@ -48,22 +38,54 @@
         }
         
         #ui-next {
-            background: white !important;
+            background: hsla(0, 0%, 100%, 0.85) !important;
+        }
+        
+        #attempts-counter {
+            display: none;
+        }
+        
+        #attempts-counter.visible {
+            display: block;
+        }
+        
+        #level-indicator {
+            display: none;
+        }
+        
+        #level-indicator.visible {
+            display: block;
+        }
+        
+        #reset-button {
+            display: none;
+        }
+        
+        #reset-button.visible {
+            display: flex !important;
         }
     </style>
 </head>
 <body>
 
+<div id="attempts-counter" style="position: fixed; top: calc(50% - 310px); left: 50%; transform: translateX(-50%); font-size: 2em; font-weight: bold; color: #da0301; z-index: 100;">Intentos: 0</div>
+
+<div id="level-indicator" style="position: fixed; bottom: calc(50% - 320px); left: 50%; transform: translateX(-50%); z-index: 100; max-width: 200px;">
+    <img id="level-indicator-img" src="" alt="Level" style="max-width: 100%;">
+</div>
+
+<div id="reset-button" style="position: fixed; top: 20px; right: 20px; font-size: 36px; font-weight: bold; color: #000; cursor: pointer; z-index: 101; user-select: none;" onclick="resetGame()">×</div>
+
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
     <div id="ui-loading" class="ui-layer">
-        <h1>Un momentito por favor...</h1>
+        <h2>Un momentito por favor...</h2>
     </div>
 
     <div id="ui-start" class="ui-layer hidden">
         <img id="title-img" src="img/game-logo.png" alt="Title" style="max-width: 80%; margin-bottom: 20px;">
-        <img id="instructions-img" src="img/instructions.png" alt="Instructions" style="max-width: 80%; margin-bottom: 30px;">
+        <h2>Encuentra los pares de alfajores en la menor cantidad de intentos.</h2>
         <img id="jugar-img" src="img/jugar.png" alt="Jugar" style="max-width: 70%; cursor: pointer;" onclick="startGame()">
     </div>
 
@@ -76,10 +98,10 @@
         <img id="siguiente-img" src="img/siguiente.png" alt="Siguiente" style="max-width: 70%; cursor: pointer;" onclick="nextLevel()">
     </div>
 
-    <div id="ui-end" class="ui-layer hidden">
-        <h1>¡Felicitaciones!</h1>
-        <p>Lograste completar el juego de los payasitos.</p>
-        <button onclick="resetGame()">Jugar de nuevo</button>
+    <div id="ui-end" class="ui-layer ">
+        <img id="done-img" src="img/felicitaciones.png" alt="Done" style="max-width: 80%; margin-bottom: 30px;">
+        <h2>Lo lograste en <span id="total-attempts">0</span> intentos.</h2>
+        <img id="done-img" onclick="resetGame()" src="img/gracias.png" alt="Done" style="max-width: 80%; margin-bottom: 30px;">
     </div>
 </div>
 

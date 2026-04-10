@@ -10,12 +10,21 @@ const uiLevel = document.getElementById('ui-level');
 const levelImg = document.getElementById('level-img');
 const uiNext = document.getElementById('ui-next');
 const uiEnd = document.getElementById('ui-end');
+const attemptsCounter = document.getElementById('attempts-counter');
+const levelIndicator = document.getElementById('level-indicator');
+const levelIndicatorImg = document.getElementById('level-indicator-img');
+const resetButton = document.getElementById('reset-button');
 
 let level = 1;
 let cards = [];
 let selected = [];
 let canClick = false;
 let gameState = 'MENU'; // MENU, PLAYING, LEVEL_WIN, GAME_OVER
+
+// Attempt counter
+let currentLevelAttempts = 0;
+let levelAttempts = {}; // Store attempts for each level
+let totalAttempts = 0;
 
 // Load Card Images
 const clownImages = [];
@@ -88,6 +97,11 @@ function initLevel() {
         selected = [];
         canClick = false;
         gameState = 'PLAYING';
+        attemptsCounter.classList.add('visible'); // Show counter during gameplay
+        levelIndicator.classList.add('visible'); // Show level indicator
+        resetButton.classList.add('visible'); // Show reset button
+        levelIndicatorImg.src = `img/nivel-${level}.png`;
+        updateAttemptsDisplay(); // Reset counter display for new level
         
         // Resolución fija para el canvas
         canvas.width = 600; 
@@ -168,6 +182,10 @@ function draw() {
     }
 }
 
+function updateAttemptsDisplay() {
+    attemptsCounter.textContent = `Intentos: ${currentLevelAttempts}`;
+}
+
 // --- INTERACCIÓN ---
 
 // Unifica Touch y Mouse
@@ -202,6 +220,10 @@ function checkMatch() {
     canClick = false;
     const [c1, c2] = selected;
 
+    // Increment attempt counter when second card is selected
+    currentLevelAttempts++;
+    updateAttemptsDisplay();
+
     // Comparamos el canvas de la imagen directamente
     if (c1.img === c2.img) {
         c1.matched = c2.matched = true;
@@ -233,16 +255,27 @@ function hideUILayers() {
     uiLevel.classList.add('hidden');
     uiNext.classList.add('hidden');
     uiEnd.classList.add('hidden');
+    attemptsCounter.classList.remove('visible');
+    levelIndicator.classList.remove('visible');
+    resetButton.classList.remove('visible');
 }
 
 function showLevelWin() {
     gameState = 'LEVEL_WIN';
+    canClick = false; // Disable further clicks
+    // Keep the board visible and drawn, just show the overlay on top
+    draw();
     uiNext.classList.remove('hidden');
 }
 
 function nextLevel() {
+    // Save current level's attempts
+    levelAttempts[level] = currentLevelAttempts;
+    totalAttempts += currentLevelAttempts;
+    
     if (level < 7) {
         level++;
+        currentLevelAttempts = 0; // Reset for new level
         initLevel();
     } else {
         showGameEnd();
@@ -252,6 +285,11 @@ function nextLevel() {
 function showGameEnd() {
     gameState = 'GAME_OVER';
     hideUILayers();
+    
+    // Display total attempts in span
+    const totalAttemptsSpan = document.getElementById('total-attempts');
+    totalAttemptsSpan.textContent = totalAttempts;
+    
     uiEnd.classList.remove('hidden');
 }
 
